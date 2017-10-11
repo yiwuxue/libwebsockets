@@ -153,7 +153,7 @@ lws_callback_raw_telnet(struct lws *wsi, enum lws_callback_reasons reason,
 		pss->state = LTST_WAIT_IAC;
 		pss->initial = 0;
 		if (vhd->ops->channel_create)
-			vhd->ops->channel_create(&pss->priv);
+			vhd->ops->channel_create(wsi, &pss->priv);
 		lws_callback_on_writable(wsi);
                 break;
 

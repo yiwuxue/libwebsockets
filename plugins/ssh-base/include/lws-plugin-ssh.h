@@ -107,7 +107,11 @@ struct lws_ssh_pty {
 #define SSHMO_TTY_OP_OSPEED	129 /* Specifies the output baud rate in
 				     * bits per second. */
 
-/*
+/*! \defgroup ssh-base plugin: lws-ssh-base
+ * \ingroup Protocols-and-Plugins
+ *
+ * ##Plugin lws-ssh-base
+ *
  * This is the interface to customize the ssh server per-vhost.  A pointer
  * to your struct lws_ssh_ops with the members initialized is passed in using
  * pvo when you create the vhost.  The pvo is attached to the protocol name
@@ -118,19 +122,28 @@ struct lws_ssh_pty {
  *
  *  This way you can have different instances of ssh servers wired up to
  *  different IO and server keys per-vhost.
+ *
+ *  See also ./READMEs/README-plugin-sshd-base.md
  */
+///@{
 
 struct lws_ssh_ops {
 	/**
 	 * channel_create() - Channel created
 	 *
+	 * \param wsi: raw wsi representing this connection
 	 * \param priv: pointer to void * you can allocate and attach to the
 	 *		channel
 	 *
 	 * Called when new channel created, *priv should be set to any
 	 * allocation your implementation needs
+	 *
+	 * You probably want to save the wsi inside your priv struct.  Calling
+	 * lws_callback_on_writable() on this wsi causes your ssh server
+	 * instance to call .tx_waiting() next time you can write something
+	 * to the client.
 	 */
-	int (*channel_create)(void **priv);
+	int (*channel_create)(struct lws *wsi, void **priv);
 
 	/**
 	 * channel_destroy() - Channel is being destroyed
@@ -164,6 +177,8 @@ struct lws_ssh_ops {
 	 *
 	 * You should use one of the lws_callback_on_writable() family to
 	 * trigger the ssh protocol to ask if you have any tx waiting.
+	 *
+	 * Returning -1 from here will close the tcp connection to the client.
 	 */
 	int (*tx_waiting)(void *priv);
 
@@ -179,13 +194,16 @@ struct lws_ssh_ops {
 	 * return the actual copied count.
 	 *
 	 * You should use one of the lws_callback_on_writable() family to
-	 * trigger the ssh protocol to ask if you have any tx waiting.
+	 * trigger the ssh protocol to ask if you have any tx waiting.  If you
+	 * do you will get calls here to fetch it, for each of LWS_STDOUT or
+	 * LWS_STDERR that were reported to be waiting by tx_waiting().
 	 */
 	size_t (*tx)(void *priv, int stdch, uint8_t *buf, size_t len);
 
 	/**
 	 * get_server_key() - retreive the secret keypair for this server
 	 *
+	 * \param wsi:  the wsi representing the connection to the client
 	 * \param buf:	start of the buffer to copy the keypair into
 	 * \param len: 	length of the buffer in bytes
 	 *
@@ -194,18 +212,19 @@ struct lws_ssh_ops {
 	 * the error isn't fatal... the plugin will generate a random key and
 	 * store it using *get_server_key() for subsequent times.
 	 */
-	size_t (*get_server_key)(uint8_t *buf, size_t len);
+	size_t (*get_server_key)(struct lws *wsi, uint8_t *buf, size_t len);
 
 	/**
 	 * set_server_key() - store the secret keypair of this server
 	 *
+	 * \param wsi:  the wsi representing the connection to the client
 	 * \param buf:	start of the buffer containing the keypair
 	 * \param len: 	length of the keypair in bytes
 	 *
 	 * store the server key in buf, length len, to nonvolatile stg.
 	 * Return length stored, 0 for fail.
 	 */
-	size_t (*set_server_key)(uint8_t *buf, size_t len);
+	size_t (*set_server_key)(struct lws *wsi, uint8_t *buf, size_t len);
 
 	/**
 	 * set_env() - Set environment variable
@@ -259,7 +278,8 @@ struct lws_ssh_ops {
 	 *
 	 * Child process has IO
 	 */
-	int (*child_process_io)(void *priv, struct lws *wsi, struct lws_cgi_args *args);
+	int (*child_process_io)(void *priv, struct lws *wsi,
+				struct lws_cgi_args *args);
 
 	/**
 	 * child_process_io() - Child process has terminated
@@ -338,6 +358,7 @@ struct lws_ssh_ops {
 	 */
 	char api_version;
 };
+///@}
 
 #endif
 

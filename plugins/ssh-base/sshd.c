@@ -108,7 +108,8 @@ timingsafe_bcmp(const void *a, const void *b, uint32_t len)
 }
 
 void
-write_task(struct per_session_data__sshd *pss, struct lws_ssh_channel *ch, int task)
+write_task(struct per_session_data__sshd *pss, struct lws_ssh_channel *ch,
+	   int task)
 {
 	pss->write_task[pss->wt_head] = task;
 	pss->write_channel[pss->wt_head] = ch;
@@ -117,7 +118,8 @@ write_task(struct per_session_data__sshd *pss, struct lws_ssh_channel *ch, int t
 }
 
 void
-lws_pad_set_length(struct per_session_data__sshd *pss, void *start, uint8_t **p, struct lws_ssh_keys *keys)
+lws_pad_set_length(struct per_session_data__sshd *pss, void *start, uint8_t **p,
+		   struct lws_ssh_keys *keys)
 {
 	uint32_t len = *p - (uint8_t *)start;
 	uint8_t padc = 4, *bs = start;
@@ -709,7 +711,8 @@ again:
 				/* username is destroyed with userauth struct */
 				if (!pss->sent_banner) {
 					if (pss->vhd->ops->banner)
-						write_task(pss, NULL, SSH_WT_UA_BANNER);
+						write_task(pss, NULL,
+							   SSH_WT_UA_BANNER);
 					pss->sent_banner = 1;
 				}
                                 break;
@@ -1029,21 +1032,25 @@ again:
 			 * changes.
 			 */
 
-			if (pss->seen_auth_req_before)
-				if (strcmp(pss->ua->username, pss->last_auth_req_username) ||
-				    strcmp(pss->ua->service, pss->last_auth_req_service)) {
-					lwsl_notice("username / service changed between auth reqs\n");
+			if (pss->seen_auth_req_before && (
+			     strcmp(pss->ua->username,
+				    pss->last_auth_req_username) ||
+			     strcmp(pss->ua->service,
+				    pss->last_auth_req_service))) {
+				lwsl_notice("username / svc changed\n");
 
-					goto bail;
-				}
+				goto bail;
+			}
 
 			pss->seen_auth_req_before = 1;
 			strncpy(pss->last_auth_req_username, pss->ua->username,
 				sizeof(pss->last_auth_req_username) - 1);
-			pss->last_auth_req_username[sizeof(pss->last_auth_req_username) - 1] = '\0';
+			pss->last_auth_req_username[
+			        sizeof(pss->last_auth_req_username) - 1] = '\0';
 			strncpy(pss->last_auth_req_service, pss->ua->service,
 				sizeof(pss->last_auth_req_service) - 1);
-			pss->last_auth_req_service[sizeof(pss->last_auth_req_service) - 1] = '\0';
+			pss->last_auth_req_service[
+			        sizeof(pss->last_auth_req_service) - 1] = '\0';
 
 			if (strcmp(pss->ua->service, "ssh-connection"))
 				goto ua_fail;
@@ -1104,7 +1111,7 @@ again:
 					pss->ua->username, pss->ua->alg,
 					pss->ua->pubkey, pss->ua->pubkey_len);
 			if (n) {
-				lwsl_notice("rejecting peer pubkey\n");
+				lwsl_info("rejecting peer pubkey\n");
 				goto ua_fail;
 			}
 
@@ -1448,7 +1455,8 @@ again:
 			pss->ch_temp->next = pss->ch_list;
 			pss->ch_list = pss->ch_temp;
 			if (pss->vhd->ops && pss->vhd->ops->channel_create)
-				pss->vhd->ops->channel_create(&pss->ch_temp->priv);
+				pss->vhd->ops->channel_create(pss->wsi,
+						&pss->ch_temp->priv);
 			write_task(pss, pss->ch_temp, SSH_WT_CH_OPEN_CONF);
 			pss->parser_state = SSHS_MSG_EAT_PADDING;
 			break;
@@ -1488,7 +1496,8 @@ again:
 			if (!strcmp(pss->name, "shell")) {
 				pss->channel_doing_spawn = pss->ch_temp->server_ch;
 				if (pss->vhd->ops && pss->vhd->ops->shell &&
-				    !pss->vhd->ops->shell(pss->ch_temp->priv, pss->wsi)) {
+				    !pss->vhd->ops->shell(pss->ch_temp->priv,
+						          pss->wsi)) {
 					if (pss->rq_want_reply)
 						write_task(pss, pss->ch_temp,
 							   SSH_WT_CHRQ_SUCC);
@@ -1519,7 +1528,8 @@ again:
 			 */
 			if (!strcmp(pss->name, "subsystem")) {
 				lwsl_notice("subsystem\n");
-				state_get_string_alloc(pss, SSHS_NVC_CHRQ_SUBSYSTEM);
+				state_get_string_alloc(pss,
+						       SSHS_NVC_CHRQ_SUBSYSTEM);
 				break;
 			}
 
@@ -1532,7 +1542,8 @@ again:
 		/* CHRQ pty-req */
 
 		case SSHS_NVC_CHRQ_TERM:
-			strncpy(pss->args.pty.term, pss->name, sizeof(pss->args.pty.term) - 1);
+			strncpy(pss->args.pty.term, pss->name,
+				sizeof(pss->args.pty.term) - 1);
 			state_get_u32(pss, SSHS_NVC_CHRQ_TW);
 			break;
 		case SSHS_NVC_CHRQ_TW:
@@ -1608,7 +1619,8 @@ again:
 					    	 (const char *)pss->last_alloc)) {
 				ssh_free(pss->last_alloc);
 				if (pss->rq_want_reply)
-					write_task(pss, pss->ch_temp, SSH_WT_CHRQ_SUCC);
+					write_task(pss, pss->ch_temp,
+						   SSH_WT_CHRQ_SUCC);
 
 				pss->parser_state = SSHS_MSG_EAT_PADDING;
 				break;
@@ -1715,13 +1727,14 @@ again:
 						while (*pp != ' ' && *pp != '\x0a')
 							pp++;
 						if (*pp++ != ' ') {
-							write_task(pss, ch, SSH_WT_SCP_ACK_ERROR);
+							write_task(pss, ch,
+							   SSH_WT_SCP_ACK_ERROR);
 							pss->parser_state = SSHS_MSG_EAT_PADDING;
 							break;
 						}
 						scp->len = atoll((const char *)pp);
 						lwsl_notice("scp payload %llu expected\n",
-								(unsigned long long)scp->len);
+							    (unsigned long long)scp->len);
 						scp->ips = SSHS_SCP_PAYLOADIN;
 					}
 					/* ack it */
@@ -1731,7 +1744,8 @@ again:
 				case SSHS_SCP_PAYLOADIN:
 					/* the scp file payload */
 					if (pss->vhd->ops)
-						pss->vhd->ops->rx(ch->priv, pss->wsi, pp, pss->npos);
+						pss->vhd->ops->rx(ch->priv,
+							pss->wsi, pp, pss->npos);
 					if (scp->len >= pss->npos)
 						scp->len -= pss->npos;
 					else
@@ -1746,7 +1760,8 @@ again:
 				break;
 			default: /* scp payload */
 				if (pss->vhd->ops)
-					pss->vhd->ops->rx(ch->priv, pss->wsi, pp, pss->npos);
+					pss->vhd->ops->rx(ch->priv, pss->wsi,
+							  pp, pss->npos);
 				break;
 			}
 			if (pss->parser_state == SSHS_NVC_CD_DATA_ALLOC)
@@ -1755,7 +1770,7 @@ again:
 			if (ch->peer_window_est < 32768) {
 				write_task(pss, ch, SSH_WT_WINDOW_ADJUST);
 				ch->peer_window_est += 32768;
-				lwsl_notice("giving peer extra WINDOW_ADJUST (est %d)\n",
+				lwsl_notice("extra peer WINDOW_ADJUST (~ %d)\n",
 					    ch->peer_window_est);
 			}
 
@@ -1994,8 +2009,7 @@ pad_and_encrypt(uint8_t *dest, void *ps, uint8_t *pp,
 		return n;
 	}
 
-	lws_chacha_encrypt(&pss->active_keys_stc,
-			   pss->ssh_sequence_ctr_stc,
+	lws_chacha_encrypt(&pss->active_keys_stc, pss->ssh_sequence_ctr_stc,
 			   ps, n, dest);
 	n += pss->active_keys_stc.MAC_length;
 
@@ -2008,16 +2022,35 @@ lws_callback_raw_sshd(struct lws *wsi, enum lws_callback_reasons reason,
 {
 	struct per_session_data__sshd *pss =
 			(struct per_session_data__sshd *)user, **p;
-	struct per_vhost_data__sshd *vhd =
-			(struct per_vhost_data__sshd *)
-			lws_protocol_vh_priv_get(lws_get_vhost(wsi),
-					lws_get_protocol(wsi));
-	const struct lws_protocol_vhost_options *pvo =
-			(const struct lws_protocol_vhost_options *)in;
-	struct lws_ssh_channel *ch;
-	int n, m, o;
+	struct per_vhost_data__sshd *vhd = NULL;
 	uint8_t buf[LWS_PRE + 1024], *pp, *ps = &buf[LWS_PRE + 512];
+	const struct lws_protocol_vhost_options *pvo;
+	const struct lws_protocols *prot;
+	struct lws_ssh_channel *ch;
 	char lang[10];
+	int n, m, o;
+
+	/*
+	 * Because we are an abstract protocol plugin, we will get called by
+	 * wsi that actually bind to a plugin "on top of us" that calls thru
+	 * to our callback.
+	 *
+	 * Under those circumstances, we can't simply get a pointer to our own
+	 * protocol from the wsi.  If there's a pss already, we can get it from
+	 * there, but the first time for each connection we have to look it up.
+	 */
+	if (pss && pss->vhd)
+		vhd = (struct per_vhost_data__sshd *)
+			lws_protocol_vh_priv_get(lws_get_vhost(wsi),
+				pss->vhd->protocol);
+	else
+		vhd = (struct per_vhost_data__sshd *)
+				lws_protocol_vh_priv_get(lws_get_vhost(wsi),
+				lws_vhost_name_to_protocol(
+					lws_get_vhost(wsi), "lws-ssh-base"));
+
+	if (!vhd && reason != LWS_CALLBACK_PROTOCOL_INIT)
+		return -1;
 
 	switch ((int)reason) {
 	case LWS_CALLBACK_PROTOCOL_INIT:
@@ -2028,6 +2061,7 @@ lws_callback_raw_sshd(struct lws *wsi, enum lws_callback_reasons reason,
 		vhd->protocol = lws_get_protocol(wsi);
 		vhd->vhost = lws_get_vhost(wsi);
 
+		pvo = (const struct lws_protocol_vhost_options *)in;
 		while (pvo) {
 			/*
 			 * the user code passes the ops struct address to us
@@ -2035,6 +2069,20 @@ lws_callback_raw_sshd(struct lws *wsi, enum lws_callback_reasons reason,
 			 */
 			if (!strcmp(pvo->name, "ops"))
 				vhd->ops = (const struct lws_ssh_ops *)pvo->value;
+
+			/*
+			 * the user code is telling us to get the ops struct
+			 * from another protocol's protocol.user pointer
+			 */
+			if (!strcmp(pvo->name, "ops-from")) {
+				prot = lws_vhost_name_to_protocol(vhd->vhost,
+								  pvo->value);
+				if (prot)
+					vhd->ops = (const struct lws_ssh_ops *)prot->user;
+				else
+					lwsl_err("%s: can't find protocol %s\n",
+						    __func__, pvo->value);
+			}
 
 			pvo = pvo->next;
 		}
@@ -2133,7 +2181,8 @@ lws_callback_raw_sshd(struct lws *wsi, enum lws_callback_reasons reason,
 			}
 
 			if (!pss->kex) {
-				lwsl_notice("%s: SSH_WT_OFFER: pss->kex is NULL\n", __func__);
+				lwsl_notice("%s: SSH_WT_OFFER: pss->kex is NULL\n",
+					    __func__);
 				return -1;
 			}
 
@@ -2347,6 +2396,8 @@ lws_callback_raw_sshd(struct lws *wsi, enum lws_callback_reasons reason,
 			if (!pss->vhd->ops)
 				break;
 			n = pss->vhd->ops->tx_waiting(ch->priv);
+			if (n < 0)
+				return -1;
 			if (!n)
 				/* nothing to send */
 				break;
@@ -2385,7 +2436,7 @@ lws_callback_raw_sshd(struct lws *wsi, enum lws_callback_reasons reason,
 
 			lws_p32(ps + m - 4, pp - (ps + m));
 
-			if (pss->vhd->ops->tx_waiting(ch->priv))
+			if (pss->vhd->ops->tx_waiting(ch->priv) > 0)
 				lws_callback_on_writable(wsi);
 
 			ch->window -= (pp - ps) - m;
@@ -2450,7 +2501,10 @@ bail:
 			if (o == SSH_WT_UA_PK_OK) /* free it either way */
 				free(ps);
 
-		if (pss->wt_head != pss->wt_tail)
+		ch = ssh_get_server_ch(pss, 0);
+
+		if (pss->wt_head != pss->wt_tail || (ch && ch->priv &&
+		    pss->vhd->ops->tx_waiting(ch->priv)))
 		       lws_callback_on_writable(wsi);
 
 		break;
@@ -2480,7 +2534,8 @@ bail:
 		ch = ssh_get_server_ch(pss, pss->channel_doing_spawn);
 		if (ch) {
 			ch->spawn_pid = len; /* child process PID */
-			lwsl_notice("associated PID %d to ch %d\n", (int)len, pss->channel_doing_spawn);
+			lwsl_notice("associated PID %d to ch %d\n", (int)len,
+				    pss->channel_doing_spawn);
 		}
 		break;
 
@@ -2496,7 +2551,8 @@ bail:
 
 		while (ch) {
 			if (ch->spawn_pid == len) {
-				lwsl_notice("starting close of channel owning PID %d\n", (int)len);
+				lwsl_notice("starting close of ch with PID %d\n",
+					    (int)len);
 				write_task(pss, ch, SSH_WT_CH_CLOSE);
 				break;
 			}
@@ -2526,7 +2582,7 @@ LWS_VISIBLE const struct lws_protocols protocols_sshd[] = {
 #if !defined (LWS_PLUGIN_STATIC)
 
 LWS_VISIBLE int
-init_protocol_lws_sshd_base(struct lws_context *context,
+init_protocol_lws_ssh_base(struct lws_context *context,
 			     struct lws_plugin_capability *c)
 {
 	if (c->api_magic != LWS_PLUGIN_API_MAGIC) {
@@ -2544,7 +2600,7 @@ init_protocol_lws_sshd_base(struct lws_context *context,
 }
 
 LWS_VISIBLE int
-destroy_protocol_lws_sshd_base(struct lws_context *context)
+destroy_protocol_lws_ssh_base(struct lws_context *context)
 {
 	return 0;
 }

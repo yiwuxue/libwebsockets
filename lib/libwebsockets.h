@@ -1846,6 +1846,23 @@ LWS_VISIBLE LWS_EXTERN void *
 lws_protocol_vh_priv_get(struct lws_vhost *vhost, const struct lws_protocols *prot);
 
 /**
+ * lws_adjust_protocol_psds - change a vhost protocol's per session data size
+ *
+ * \param wsi: a connection with the protocol to change
+ * \param new_size: the new size of the per session data size for the protocol
+ *
+ * Returns user_space for the wsi, after allocating
+ *
+ * This should not be used except to initalize a vhost protocol's per session
+ * data size one time, before any connections are accepted.
+ *
+ * Sometimes the protocol wraps another protocol and needs to discover and set
+ * its per session data size at runtime.
+ */
+LWS_VISIBLE LWS_EXTERN void *
+lws_adjust_protocol_psds(struct lws *wsi, size_t new_size);
+
+/**
  * lws_finalize_startup() - drop initial process privileges
  *
  * \param context:	lws context

@@ -283,7 +283,7 @@ get_gen_server_key_25519(struct per_session_data__sshd *pss, uint8_t *b,
 {
 	size_t s, mylen;
 
-	mylen = pss->vhd->ops->get_server_key(b, len);
+	mylen = pss->vhd->ops->get_server_key(pss->wsi, b, len);
 	if (mylen)
 		return mylen;
 
@@ -294,7 +294,7 @@ get_gen_server_key_25519(struct per_session_data__sshd *pss, uint8_t *b,
 	if (!s)
 		return 0;
 	/* set the key */
-	if (!pss->vhd->ops->set_server_key(b, s))
+	if (!pss->vhd->ops->set_server_key(pss->wsi, b, s))
 		return 0;
 
 	/* new key stored OK */

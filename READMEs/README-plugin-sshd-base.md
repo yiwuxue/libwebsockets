@@ -87,12 +87,32 @@ Connect to it using the test private key like this
  $ ssh -p 2200 -i /usr/local/share/libwebsockets-test-server/lws-ssh-test-keys anyuser@127.0.0.1
 ```
 
-2) There's also a working example plugin that "subclasses" the `lws-ssh-base`
-plugin to make a protocol which can be used from, eg, lwsws.
+2) There's also a working example plugin `lws-sshd-demo` that "subclasses" the
+abstract `lws-ssh-base` plugin to make a protocol which can be used from,
+eg, lwsws.  For an lwsws vhost that listens on port 2222 and responds with
+the lws-sshd-demo ssh server, the related config is:
+
+```
+        {
+                "name": "sshd",
+                "port": "2222",
+                "onlyraw": "1",
+                "ws-protocols": [{
+                        "lws-ssh-base": {
+                                "status": "ok",
+                                "ops-from": "lws-sshd-demo"
+                        },
+                        "lws-sshd-demo": {
+                                "status": "ok",
+                                "raw": "1"
+                        }
+                }]
+        }
+```
 
 
 
-## Integration
+## Integration to other apps
 
 ### Step 0: Build and install libwebsockets
 
@@ -103,7 +123,7 @@ lws-ssh-base itself doesn't require CGI support in libwebsockets.
 
 ### Step 1: make the code available in your app
 
-Include lws-plugin-ssh-base in your app, either as a runtime plugin or by using
+Include `lws-plugin-ssh-base` in your app, either as a runtime plugin or by using
 the lws static include scheme.
 
 To bring in the whole of the ssh-base plugin
@@ -170,6 +190,55 @@ static const struct lws_protocol_vhost_options pvo_ssh = {
 	info.pvo = &pvo_ssh;
 
 	vh_sshd = lws_create_vhost(context, &info);
+```
+
+There are two possible pvos supported, "ops", shown above, directly passes the
+ops structure in using the value on the "ops" pvo.
+
+To support other protocols that want to provide ops to lws-ssh-base themselves
+for a particular vhost, you can also provide a pvo `"ops-from"` whose value is
+the name of the protocol also enabled on this vhost, whose protocol ".user"
+pointer points to the ops struct lws-ssh-base should use.
+
+## Integration to other plugins
+
+A worked example of using the abstract `lws-ssh-base` plugin from another
+plugin that provides the ops struct is in `./plugins/protocol_lws_sshd_demo`.
+
+The key points to note
+
+ - the plugin sets the ops struct for the vhost instantiation of `lws-ssh-base`
+ by passing a pointer to the ops struct in its `lws_protocols` struct `user`
+ member.
+ 
+ - the config for the vhost tells `lws-ssh-base` to pick up the ops struct
+ pointer using an "ops-from" pvo that indicates the protocol name.
+ 
+```
+ 			"lws-ssh-base": {
+                                "status": "ok",
+                                "ops-from": "lws-sshd-demo"
+                        },
+```
+
+ - the config for the vhost tells lws this vhost only serves RAW (ie, no http)
+ 
+```
+         {
+                "name": "sshd",
+                "port": "2222",
+                "onlyraw": "1",
+                ...
+```
+
+ - the config for the vhost marks the protocol that uses `lws-ssh-base`, not
+ `lws-ssh-base` itself, as the protocol to be served for raw connections
+
+```
+                        "lws-sshd-demo": {
+                                "status": "ok",
+                                "raw": "1"
+                         ...
 ```
 
 ## Notes
