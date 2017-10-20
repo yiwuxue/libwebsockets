@@ -126,7 +126,7 @@ lws_ssl_server_name_cb(SSL *ssl, int *ad, void *arg)
 		return SSL_TLSEXT_ERR_OK;
 	}
 
-	lwsl_notice("SNI: Found: %s:%d\n", servername, vh->listen_port);
+	lwsl_info("SNI: Found: %s:%d\n", servername, vh->listen_port);
 
 	/* select the ssl ctx from the selected vhost for this conn */
 	SSL_set_SSL_CTX(ssl, vhost->ssl_ctx);

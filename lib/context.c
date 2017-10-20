@@ -611,22 +611,27 @@ lws_create_vhost(struct lws_context *context,
 	else
 		vh->timeout_secs_ah_idle = 10;
 
+#ifdef LWS_OPENSSL_SUPPORT
+	if (info->ecdh_curve)
+		strncpy(vh->ecdh_curve, info->ecdh_curve, sizeof(vh->ecdh_curve) - 1);
+#endif
+
+	/* carefully allocate and take a copy of cert + key paths if present */
 	n = 0;
 	if (info->ssl_cert_filepath)
-		n += strlen(ssl_cert_filepath) + 1;
+		n += strlen(info->ssl_cert_filepath) + 1;
 	if (info->ssl_private_key_filepath)
-		n += strlen(ssl_private_key_filepath) + 1;
+		n += strlen(info->ssl_private_key_filepath) + 1;
 
 	if (n) {
-		vhost->key_path = vhost->alloc_cert_path = lws_malloc(n);
+		vh->key_path = vh->alloc_cert_path = lws_malloc(n, "vh paths");
 		if (info->ssl_cert_filepath) {
-			n = strlen(ssl_cert_filepath) + 1;
-			memcpy(vhost->alloc_cert_path, info->ssl_cert_filepath,
-				n);
-			vhost->key_path += n;
+			n = strlen(info->ssl_cert_filepath) + 1;
+			memcpy(vh->alloc_cert_path, info->ssl_cert_filepath, n);
+			vh->key_path += n;
 		}
 		if (info->ssl_private_key_filepath)
-			memcpy(vhost->key_path, info->ssl_private_key_filepath,
+			memcpy(vh->key_path, info->ssl_private_key_filepath,
 			       strlen(info->ssl_private_key_filepath) + 1);
 	}
 
@@ -1546,7 +1551,7 @@ lws_vhost_destroy2(struct lws_vhost *vh)
 		close(vh->log_fd);
 #endif
 
-	lws_free_set_NULL(vhost->alloc_cert_path);
+	lws_free_set_NULL(vh->alloc_cert_path);
 
 	/*
 	 * although async event callbacks may still come for wsi handles with
