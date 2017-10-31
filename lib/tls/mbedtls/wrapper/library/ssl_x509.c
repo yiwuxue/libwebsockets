@@ -241,13 +241,13 @@ int SSL_CTX_use_certificate_ASN1(SSL_CTX *ctx, int len,
 
     x = d2i_X509(NULL, d, len);
     if (!x) {
-        SSL_DEBUG(SSL_PKEY_ERROR_LEVEL, "d2i_X509() return NULL");
+        printf("d2i_X509() return NULL\n");
         goto failed1;
     }
 
     ret = SSL_CTX_use_certificate(ctx, x);
     if (!ret) {
-        SSL_DEBUG(SSL_PKEY_ERROR_LEVEL, "SSL_CTX_use_certificate() return %d", ret);
+        printf("SSL_CTX_use_certificate() return %d", ret);
         goto failed2;
     }
 
