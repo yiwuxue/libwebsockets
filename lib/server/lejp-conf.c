@@ -99,6 +99,7 @@ static const char * const paths_vhosts[] = {
 	"vhosts[].client-ssl-ca",
 	"vhosts[].client-ssl-ciphers",
 	"vhosts[].onlyraw",
+	"vhosts[].ignore-missing-cert",
 };
 
 enum lejp_vhost_paths {
@@ -146,6 +147,7 @@ enum lejp_vhost_paths {
 	LEJPVP_CLIENT_SSL_CA,
 	LEJPVP_CLIENT_CIPHERS,
 	LEJPVP_FLAG_ONLYRAW,
+	LEJPVP_IGNORE_MISSING_CERT,
 };
 
 static const char * const parser_errs[] = {
@@ -680,6 +682,13 @@ lejp_vhosts_cb(struct lejp_ctx *ctx, char reason)
 			a->info->options |= LWS_SERVER_OPTION_IPV6_V6ONLY_VALUE;
 		else
 			a->info->options &= ~(LWS_SERVER_OPTION_IPV6_V6ONLY_VALUE);
+		return 0;
+
+	case LEJPVP_IGNORE_MISSING_CERT:
+		if (arg_to_bool(ctx->buf))
+			a->info->options |= LWS_SERVER_OPTION_IGNORE_MISSING_CERT;
+		else
+			a->info->options &= ~(LWS_SERVER_OPTION_IGNORE_MISSING_CERT);
 		return 0;
 
 	case LEJPVP_SSL_OPTION_SET:
